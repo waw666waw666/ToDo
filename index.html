@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Do</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 引入 SortableJS：移动端最稳定的拖拽排序库 -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --coloros-bg: #F7F8FA;
+            --coloros-primary: #0062FF;
+            --coloros-success: #25C78B;
+            --coloros-card-bg: #FFFFFF;
+            --safe-area-top: max(env(safe-area-inset-top), 44px);
+            --safe-area-bottom: env(safe-area-inset-bottom);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--coloros-bg);
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            color: #1D1D1F;
+            position: fixed;
+            overscroll-behavior: none;
+            /* 禁用系统默认长按行为 */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* 针对输入框恢复选择功能 */
+        input, textarea {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+
+        /* 顶部固定标题栏 */
+        .app-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(247, 248, 250, 0.95);
+            backdrop-filter: blur(20px);
+            padding: var(--safe-area-top) 20px 16px;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.05);
+        }
+
+        /* App Content */
+        .app-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 16px;
+            margin-top: calc(var(--safe-area-top) + 70px);
+            padding-bottom: calc(100px + var(--safe-area-bottom)); /* 调整底部间距 */
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .app-content::-webkit-scrollbar {
+            width: 0;
+        }
+
+        /* ColorOS Card Style */
+        .task-card {
+            background: transparent;
+            border-radius: 24px;
+            margin-bottom: 16px;
+            position: relative;
+            overflow: hidden; /* 必须溢出隐藏以容纳背景层 */
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* 滑动背景层 - 红色 */
+        .swipe-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #FF4D4F;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            padding-left: 24px;
+            color: white;
+            font-size: 20px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 1;
+        }
+
+        /* 实际的任务卡片内容层 */
+        .task-card-content {
+            background: var(--coloros-card-bg);
+            padding: 20px;
+            border-radius: 24px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+            position: relative;
+            z-index: 2;
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            border: 1px solid rgba(0, 0, 0, 0.02);
+            touch-action: pan-y; /* 允许垂直滚动，由我们手动处理水平位移 */
+        }
+
+        .task-card-content.no-transition {
+            transition: none !important;
+        }
+
+        /* Sortable 占位符样式 */
+        .sortable-ghost {
+            opacity: 0.4;
+            background: #F2F2F7 !important;
+            border: 2px dashed #0062FF;
+        }
+
+        .sortable-chosen {
+            transform: scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        /* 逻辑样式应用到内容层 */
+        .task-card-content.todo { border-left: 5px solid var(--coloros-primary); }
+        .task-card-content.do-item { border-left: 5px solid var(--coloros-success); }
+        
+        .task-card-content.done-grey { 
+            opacity: 0.6; 
+            background: #F2F2F2;
+            box-shadow: none;
+        }
+        .task-card-content.done-grey .task-text { 
+            text-decoration: line-through; 
+            color: #86868B; 
+        }
+
+        .task-card.dragging .task-card-content {
+            opacity: 0.4;
+            background: #EBEBEB !important;
+        }
+
+        .task-text {
+            word-break: break-all;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            line-height: 1.5;
+            font-size: 17px;
+        }
+
+        .empty-state {
+            display: flex; 
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding-top: 100px;
+            opacity: 0.2;
+        }
+        .empty-state i { font-size: 64px; margin-bottom: 16px; }
+        .empty-state span { font-size: 16px; font-weight: 500; }
+
+        .finished-separator {
+            display: flex;
+            align-items: center;
+            margin: 32px 0 16px;
+            color: #86868B;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .finished-separator::before,
+        .finished-separator::after {
+            content: "";
+            flex: 1;
+            height: 1.5px;
+            background: #EBEBEB;
+        }
+
+        .finished-separator span {
+            padding: 0 16px;
+        }
+
+        /* Bottom Nav - 优化排列，降低高度 */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            height: calc(56px + var(--safe-area-bottom)); /* 降低高度至 56px */
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(25px) saturate(180%);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding-bottom: var(--safe-area-bottom);
+            border-top: 0.5px solid rgba(0, 0, 0, 0.08);
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #86868B;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            width: 45%;
+            height: 100%;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .nav-item.active {
+            color: var(--coloros-primary);
+        }
+
+        .nav-item i {
+            font-size: 22px;
+            margin-bottom: 2px;
+        }
+
+        .nav-item span {
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        /* Modal Style Refinement */
+        #addModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 200;
+            backdrop-filter: blur(15px);
+            justify-content: center;
+            align-items: flex-end;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .modal-content {
+            background: #FFFFFF;
+            width: 100%;
+            border-radius: 36px 36px 0 0;
+            padding: 24px;
+            padding-bottom: calc(30px + var(--safe-area-bottom));
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.08);
+            animation: colorosSheetUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            max-height: 95vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @keyframes colorosSheetUp {
+            from { transform: translateY(100%); opacity: 0.5; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .input-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .input-label {
+            font-size: 14px;
+            font-weight: 700;
+            color: #86868B;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .input-label .shortcut {
+            color: var(--coloros-primary);
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(0, 98, 255, 0.08);
+            padding: 4px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        textarea, input[type="text"] {
+            -webkit-appearance: none;
+            border: 2px solid #F2F2F7;
+            background: #F7F7F9;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 16px 18px;
+            border-radius: 18px;
+            font-size: 17px;
+            font-weight: 500;
+            width: 100%;
+            outline: none;
+            color: #1D1D1F;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            resize: none;
+            min-height: 120px;
+            line-height: 1.6;
+        }
+
+        textarea:focus, input[type="text"]:focus {
+            border-color: var(--coloros-primary);
+            background: #FFFFFF;
+            box-shadow: 0 0 0 4px rgba(0, 98, 255, 0.05);
+        }
+
+        .btn-confirm {
+            background: var(--coloros-primary);
+            color: white;
+            box-shadow: 0 12px 24px rgba(0, 98, 255, 0.2);
+        }
+
+        .btn-cancel {
+            background: #F2F2F7;
+            color: #86868B;
+        }
+
+        .modal-header-line {
+            width: 40px;
+            height: 5px;
+            background: #E5E5EA;
+            border-radius: 10px;
+            margin: 0 auto 24px;
+        }
+
+        .fab {
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 20px rgba(0, 98, 255, 0.2);
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        .fab:active { transform: scale(0.9); }
+
+        /* 图片相关样式 */
+        .image-upload-btn {
+            width: 36px;
+            height: 36px;
+            background: #F2F2F7;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #86868B;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .image-upload-btn:active { transform: scale(0.9); background: #E5E5EA; }
+
+        .modal-image-preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+            display: none;
+        }
+        .modal-image-preview {
+            width: 64px;
+            height: 64px;
+            border-radius: 14px;
+            overflow: visible; /* 改为 visible 以便显示删除按钮 */
+            position: relative;
+            border: 1px solid rgba(0,0,0,0.05);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .modal-image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 14px;
+        }
+        .remove-img-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 22px;
+            height: 22px;
+            background: #FF4D4F;
+            border: 2px solid #FFFFFF;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            z-index: 10;
+            cursor: pointer;
+        }
+
+        .task-images-container {
+            display: flex;
+            gap: 6px;
+            margin-right: 8px;
+            flex-shrink: 0;
+            max-width: 150px; /* 限制最大宽度，防止挤压文字 */
+            overflow-x: auto;
+        }
+        .task-images-container::-webkit-scrollbar { display: none; }
+
+        .task-card-img {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            object-fit: cover;
+            flex-shrink: 0;
+            border: 1px solid rgba(0,0,0,0.05);
+            cursor: pointer;
+        }
+
+        /* 全屏图片查看器样式 */
+        .image-viewer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .image-viewer-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .image-viewer-img {
+            max-width: 95%;
+            max-height: 85%;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .image-viewer-overlay.active .image-viewer-img {
+            transform: scale(1);
+        }
+
+        .close-viewer-btn {
+            position: absolute;
+            top: max(env(safe-area-inset-top), 20px);
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+        }
+
+        /* Delete Confirmation Modal Styles */
+        .delete-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            z-index: 500;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .delete-modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .delete-modal-content {
+            background: #FFFFFF;
+            width: 85%;
+            max-width: 320px;
+            border-radius: 32px;
+            padding: 32px 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            transform: scale(0.85);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-align: center;
+        }
+
+        .delete-modal-overlay.active .delete-modal-content {
+            transform: scale(1);
+        }
+
+        .delete-icon-wrapper {
+            width: 64px;
+            height: 64px;
+            background: rgba(255, 77, 79, 0.1);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            color: #FF4D4F;
+            font-size: 28px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- App Content Sections -->
+    <div id="view-do" class="app-content">
+        <div class="app-header">
+            <h1 class="text-4xl font-extrabold tracking-tight">Do</h1>
+            <button onclick="showAddModal('do')" class="fab bg-[#25C78B] text-white">
+                <i class="fas fa-plus text-2xl"></i>
+            </button>
+        </div>
+        <div id="done-list">
+            <!-- Completed tasks will be injected here -->
+        </div>
+    </div>
+
+    <div id="view-todo" class="app-content hidden">
+        <div class="app-header">
+            <h1 class="text-4xl font-extrabold tracking-tight">To Do</h1>
+            <button onclick="showAddModal('todo')" class="fab bg-[#0062FF] text-white">
+                <i class="fas fa-plus text-2xl"></i>
+            </button>
+        </div>
+        <div id="todo-list">
+            <!-- Active Tasks will be injected here -->
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <div class="nav-item" id="nav-do" onclick="switchTab('do')">
+            <i class="fas fa-check-circle"></i>
+            <span>Do</span>
+        </div>
+        <div class="nav-item" id="nav-todo" onclick="switchTab('todo')">
+            <i class="fas fa-list-ul"></i>
+            <span>To Do</span>
+        </div>
+    </div>
+
+    <!-- Add Task Modal -->
+    <div id="addModal" onclick="if(event.target==this) hideAddModal()">
+        <div class="modal-content">
+            <div class="modal-header-line"></div>
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold" id="modalTitle">编辑事项</h2>
+                <label for="imageInput" class="image-upload-btn">
+                    <i class="fas fa-image"></i>
+                </label>
+                <input type="file" id="imageInput" accept="image/*" class="hidden" multiple onchange="handleImageUpload(this)">
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label">任务内容</label>
+                <textarea id="taskInput" placeholder="在此输入内容..."></textarea>
+            </div>
+
+            <!-- 图片预览区域 -->
+            <div id="imagePreviewContainer" class="modal-image-preview-container">
+                <!-- 动态生成的图片预览将放在这里 -->
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">
+                    <span>日期与时间</span>
+                    <span class="shortcut" onclick="document.getElementById('taskTimeInput').value = getFormattedTime()">设为当前</span>
+                </label>
+                <input type="text" id="taskTimeInput" placeholder="年/月/日 星期 HH:mm" oninput="autoUpdateWeekday(this)">
+            </div>
+
+            <div class="flex gap-4 mt-2">
+                <button onclick="hideAddModal()" class="btn-cancel flex-1 p-5 rounded-2xl font-bold active:scale-95 transition-all">取消</button>
+                <button onclick="addTask()" id="confirmBtn" class="btn-confirm flex-1 p-5 rounded-2xl font-bold active:scale-95 transition-all">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="delete-modal-overlay" onclick="if(event.target==this) hideDeleteModal()">
+        <div class="delete-modal-content">
+            <div class="delete-icon-wrapper">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <h3 class="text-xl font-bold text-[#1D1D1F] mb-2">确认删除</h3>
+            <p class="text-[#86868B] text-sm mb-8 leading-relaxed">删除后将无法找回该事项，<br>确定要执行此操作吗？</p>
+            <div class="flex flex-col gap-3">
+                <button id="confirmDeleteBtn" class="w-full p-4 bg-[#FF4D4F] text-white rounded-2xl font-bold active:scale-95 transition-all">删除</button>
+                <button onclick="hideDeleteModal()" class="w-full p-4 bg-[#F2F2F7] text-[#86868B] rounded-2xl font-bold active:scale-95 transition-all">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full Image Viewer -->
+    <div id="imageViewer" class="image-viewer-overlay" onclick="closeImageViewer()">
+        <div class="close-viewer-btn">
+            <i class="fas fa-times"></i>
+        </div>
+        <img id="fullImage" class="image-viewer-img" src="" alt="">
+    </div>
+
+    <script>
+        // --- 状态记忆与持久化逻辑 ---
+        
+        // 1. 获取本地存储的任务，如果没有则返回空数组（不再强制显示初始任务）
+        let tasks = JSON.parse(localStorage.getItem('do_tasks')) || [];
+
+        // 2. 获取上次退出的板块，默认为 'do'
+        let activeTab = localStorage.getItem('do_active_tab') || 'do';
+        
+        // 3. 排序状态：desc (降序) / asc (升序) / manual (手动)
+        let sortOrders = JSON.parse(localStorage.getItem('do_sort_orders')) || { do: 'desc', todo: 'asc' };
+
+        function saveState() {
+            localStorage.setItem('do_tasks', JSON.stringify(tasks));
+            localStorage.setItem('do_active_tab', activeTab);
+            localStorage.setItem('do_sort_orders', JSON.stringify(sortOrders));
+        }
+
+        // 获取格式化的日期时间：年/月/日 星期X HH:mm
+        function getFormattedTime() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth() + 1;
+            const date = now.getDate();
+            const dayNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            const dayName = dayNames[now.getDay()];
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            return `${year}/${month}/${date} ${dayName} ${hours}:${minutes}`;
+        }
+
+        // 自动根据输入的日期更新星期几
+        function autoUpdateWeekday(el) {
+            const val = el.value;
+            // 匹配 YYYY/M/D 或 YYYY/MM/DD
+            const dateMatch = val.match(/^(\d{4}\/\d{1,2}\/\d{1,2})/);
+            if (dateMatch) {
+                const dateStr = dateMatch[1];
+                const d = new Date(dateStr);
+                if (!isNaN(d.getTime())) {
+                    const dayNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+                    const newDay = dayNames[d.getDay()];
+                    
+                    // 尝试分割字符串：日期 星期 时间
+                    const parts = val.split(/\s+/);
+                    if (parts.length >= 2 && parts[1].startsWith('星期')) {
+                        if (parts[1] !== newDay) {
+                            const start = el.selectionStart;
+                            const end = el.selectionEnd;
+                            parts[1] = newDay;
+                            el.value = parts.join(' ');
+                            // 恢复光标位置，防止跳动
+                            el.setSelectionRange(start, end);
+                        }
+                    } else if (parts.length === 1 && val === dateStr) {
+                        // 如果用户刚输完日期，自动补全星期
+                        el.value = dateStr + ' ' + newDay;
+                    }
+                }
+            }
+        }
+
+        // --- 界面逻辑 ---
+
+        // 切换板块并记录
+        function switchTab(tab) {
+            if (activeTab === tab) {
+                // 如果点击当前已激活的 Tab，则切换排序方式
+                sortOrders[tab] = sortOrders[tab] === 'desc' ? 'asc' : 'desc';
+                
+                // 执行基于时间的排序
+                let targetTasks, otherTasks;
+                if (tab === 'todo') {
+                    // To Do 板块只对未完成的进行排序
+                    targetTasks = tasks.filter(t => t.category === 'todo' && !t.completed);
+                    otherTasks = tasks.filter(t => !(t.category === 'todo' && !t.completed));
+                } else {
+                    // Do 板块对所有显示的成就进行统一排序（包括直接创建的和转移过来的）
+                    targetTasks = tasks.filter(t => t.category === 'do' || (t.category === 'todo' && t.completed));
+                    otherTasks = tasks.filter(t => !(t.category === 'do' || (t.category === 'todo' && t.completed)));
+                }
+                
+                targetTasks = sortTasks([...targetTasks], sortOrders[tab]);
+                tasks = [...targetTasks, ...otherTasks];
+            }
+            
+            activeTab = tab;
+            saveState(); 
+            
+            document.querySelectorAll('.app-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            
+            const targetView = document.getElementById(`view-${tab}`);
+            if (targetView) targetView.classList.remove('hidden');
+            
+            const targetNav = document.getElementById(`nav-${tab}`);
+            if (targetNav) targetNav.classList.add('active');
+            
+            renderTasks();
+        }
+
+        // 排序函数：基于时间字符串
+        function sortTasks(taskList, order) {
+            return taskList.sort((a, b) => {
+                if (!a.time || !b.time) return 0;
+                // 使用 localeCompare 进行字符串比较，确保格式如 YYYY/MM/DD 的正确性
+                return order === 'desc' 
+                    ? b.time.localeCompare(a.time) 
+                    : a.time.localeCompare(b.time);
+            });
+        }
+
+        // Render Tasks
+        function renderTasks() {
+            const todoList = document.getElementById('todo-list');
+            const doneList = document.getElementById('done-list');
+            if (todoList) todoList.innerHTML = '';
+            if (doneList) doneList.innerHTML = '';
+
+            if (activeTab === 'todo') {
+                // To Do 板块：显示未完成项目 + 已完成项目（变灰并在下方）
+                let todoActive = tasks.filter(t => t.category === 'todo' && !t.completed);
+                let todoCompleted = tasks.filter(t => t.category === 'todo' && t.completed);
+                
+                if (todoActive.length === 0 && todoCompleted.length === 0) {
+                    todoList.innerHTML = `<div class="empty-state"><i class="fas fa-edit"></i><span>规划今日待办</span></div>`;
+                } else {
+                    // 应用当前的排序设置
+                    const sortedActive = sortTasks([...todoActive], sortOrders.todo);
+                    const sortedCompleted = sortTasks([...todoCompleted], sortOrders.todo);
+
+                    // 创建未完成容器
+                    const activeContainer = document.createElement('div');
+                    activeContainer.id = 'todo-active-group';
+                    sortedActive.forEach(task => activeContainer.appendChild(createTaskCard(task, false, false)));
+                    todoList.appendChild(activeContainer);
+
+                    if (todoCompleted.length > 0) {
+                        const sep = document.createElement('div');
+                        sep.className = 'finished-separator'; sep.innerHTML = '<span>已做完</span>';
+                        todoList.appendChild(sep);
+
+                        const completedContainer = document.createElement('div');
+                        completedContainer.id = 'todo-completed-group';
+                        sortedCompleted.forEach(task => completedContainer.appendChild(createTaskCard(task, false, true)));
+                        todoList.appendChild(completedContainer);
+                    }
+                    
+                    initSortable('todo-active-group');
+                    initSortable('todo-completed-group');
+                }
+            } else {
+                // Do 板块：显示成就（包括直接创建的和从 To Do 转移过来的）
+                // 统一获取并参与排序
+                let doTasks = tasks.filter(t => t.category === 'do' || (t.category === 'todo' && t.completed));
+
+                if (doTasks.length === 0) {
+                    doneList.innerHTML = `<div class="empty-state"><i class="fas fa-medal"></i><span>记录今日成就</span></div>`;
+                } else {
+                    const doContainer = document.createElement('div');
+                    doContainer.id = 'do-group';
+                    
+                    // 始终应用当前的排序设置（升序或降序）
+                    const sortedDoTasks = sortTasks([...doTasks], sortOrders.do);
+                    
+                    sortedDoTasks.forEach(task => doContainer.appendChild(createTaskCard(task, true, false)));
+                    doneList.appendChild(doContainer);
+                    initSortable('do-group');
+                }
+            }
+        }
+
+        let sortableInstances = {};
+        function initSortable(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            
+            if (sortableInstances[id]) sortableInstances[id].destroy();
+
+            sortableInstances[id] = new Sortable(el, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'dragging',
+                delay: 500, // 稍微延长长按时间，确保与快划删除区分开
+                delayOnTouchOnly: true,
+                touchStartThreshold: 10, // 允许一定的手指抖动范围
+                onStart: function(evt) {
+                    // 排序开始时，禁止该列表内的滑动删除
+                    evt.item.setAttribute('data-sorting', 'true');
+                    if (window.navigator.vibrate) window.navigator.vibrate(50);
+                },
+                onEnd: function(evt) {
+                    evt.item.removeAttribute('data-sorting');
+                    updateTasksOrderFromDOM();
+                }
+            });
+        }
+
+        function createTaskCard(task, isInDoView = false, forceGrey = false) {
+            const card = document.createElement('div');
+            const isGrey = forceGrey && task.completed;
+            
+            let cardClass = 'todo';
+            if (isInDoView || task.category === 'do') cardClass = 'do-item';
+            if (isGrey) cardClass = 'done-grey';
+            
+            card.className = `task-card`;
+            card.setAttribute('data-id', task.id);
+            
+            let displayTime = task.time || getFormattedTime();
+
+            const isChecked = isInDoView || task.completed;
+            const checkboxColor = (isInDoView || task.category === 'do') ? 'bg-[#25C78B] border-[#25C78B]' : 'bg-[#0062FF] border-[#0062FF]';
+            const checkboxHTML = `
+                <div onclick="event.stopPropagation(); toggleTask(${task.id}, ${isInDoView})" style="flex-shrink: 0;" class="w-8 h-8 rounded-full border-2 ${isChecked ? checkboxColor : 'border-gray-200'} flex items-center justify-center cursor-pointer transition-all active:scale-90">
+                    ${isChecked ? '<i class="fas fa-check text-white text-xs"></i>' : ''}
+                </div>
+            `;
+
+            card.innerHTML = `
+                <div class="swipe-bg">
+                    <i class="fas fa-trash-alt"></i>
+                </div>
+                <div class="task-card-content ${cardClass}">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-4 flex-1" style="min-width: 0;">
+                            ${checkboxHTML}
+                            <div class="flex-1 select-none active:opacity-70 transition-opacity" 
+                                 style="min-width: 0; padding: 8px 0;" 
+                                 onclick="event.stopPropagation(); showEditModal(${task.id})">
+                                <div class="task-text font-bold text-[#1D1D1F] leading-tight pointer-events-none">${task.text}</div>
+                                <div class="text-xs text-[#86868B] mt-1.5 font-medium flex items-center pointer-events-none">
+                                    <i class="far fa-clock mr-1"></i>${displayTime}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="task-images-container">
+                                ${ (task.images || (task.image ? [task.image] : [])).map(img => `
+                                    <img src="${img}" class="task-card-img" onclick="event.stopPropagation(); openImageViewer('${img}')">
+                                `).join('') }
+                            </div>
+                            <button onclick="event.stopPropagation(); deleteTask(${task.id})" class="w-10 h-10 flex items-center justify-center text-[#C7C7CC] active:text-[#FF4D4F] transition-colors">
+                                <i class="fas fa-trash-alt text-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // --- 优化版滑动删除逻辑 ---
+            const content = card.querySelector('.task-card-content');
+            const bg = card.querySelector('.swipe-bg');
+            let startX = 0;
+            let startY = 0;
+            let currentX = 0;
+            let isSwiping = false;
+            let directionLocked = false; // 方向锁定标志
+
+            content.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                directionLocked = false;
+                currentX = 0;
+                content.classList.add('no-transition');
+            }, { passive: true });
+
+            content.addEventListener('touchmove', (e) => {
+                if (card.getAttribute('data-sorting') === 'true') return;
+
+                const x = e.touches[0].clientX;
+                const y = e.touches[0].clientY;
+                const diffX = x - startX;
+                const diffY = y - startY;
+
+                // 初始方向判定
+                if (!directionLocked) {
+                    if (Math.abs(diffX) > 10 || Math.abs(diffY) > 10) {
+                        // 如果水平位移大于垂直位移，锁定为滑动删除
+                        if (Math.abs(diffX) > Math.abs(diffY) && diffX > 0) {
+                            isSwiping = true;
+                        } else {
+                            isSwiping = false;
+                        }
+                        directionLocked = true;
+                    }
+                }
+
+                if (isSwiping) {
+                    // 阻止系统滚动
+                    if (e.cancelable) e.preventDefault();
+                    
+                    currentX = diffX;
+                    const maxSwipe = window.innerWidth * 0.6;
+                    // 加入阻尼感
+                    const resistance = 0.8;
+                    const finalX = Math.min(currentX * resistance, maxSwipe);
+                    
+                    if (finalX > 0) {
+                        content.style.transform = `translateX(${finalX}px)`;
+                        bg.style.opacity = Math.min(finalX / 80, 1);
+                    }
+                }
+            }, { passive: false });
+
+            content.addEventListener('touchend', () => {
+                content.classList.remove('no-transition');
+                const threshold = window.innerWidth * 0.35;
+
+                if (isSwiping && currentX > threshold) {
+                    deleteTask(task.id);
+                }
+                
+                content.style.transform = '';
+                bg.style.opacity = '';
+                isSwiping = false;
+                directionLocked = false;
+            });
+
+            return card;
+        }
+
+        function updateTasksOrderFromDOM() {
+            // 获取所有当前页面上的任务 ID 顺序
+            const allVisibleCards = [...document.querySelectorAll('.task-card')];
+            const newOrderIds = allVisibleCards.map(el => parseInt(el.getAttribute('data-id')));
+            
+            if (newOrderIds.length === 0) return;
+
+            // 建立 ID 到任务对象的映射
+            const taskMap = new Map(tasks.map(t => [t.id, t]));
+            
+            // 1. 获取当前视图的所有任务对象，按 DOM 顺序排列
+            const reorderedVisibleTasks = newOrderIds.map(id => taskMap.get(id)).filter(t => t);
+            
+            // 2. 获取当前视图中没有显示的任务（其他 tab 的任务）
+            const visibleIdsSet = new Set(newOrderIds);
+            const otherTasks = tasks.filter(t => !visibleIdsSet.has(t.id));
+            
+            // 3. 合并并保存
+            tasks = [...reorderedVisibleTasks, ...otherTasks];
+            saveState();
+        }
+
+        // Task Operations
+        let currentModalTarget = 'todo';
+        let editingTaskId = null;
+        let currentTaskImages = []; // 用于存储当前弹窗中的图片 Base64 数组
+
+        // 处理图片上传
+        function handleImageUpload(input) {
+            const files = Array.from(input.files);
+            if (files.length > 0) {
+                files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        currentTaskImages.push(e.target.result);
+                        renderImagePreviews();
+                    };
+                    reader.readAsDataURL(file);
+                });
+                // 重置 input 以允许再次选择相同图片
+                input.value = '';
+            }
+        }
+
+        function renderImagePreviews() {
+            const container = document.getElementById('imagePreviewContainer');
+            container.innerHTML = '';
+            
+            if (currentTaskImages.length > 0) {
+                container.style.display = 'flex';
+                currentTaskImages.forEach((base64, index) => {
+                    const preview = document.createElement('div');
+                    preview.className = 'modal-image-preview';
+                    preview.onclick = () => openImageViewer(base64);
+                    preview.innerHTML = `
+                        <img src="${base64}" alt="">
+                        <div class="remove-img-btn" onclick="event.stopPropagation(); removeImage(${index})">
+                            <i class="fas fa-times"></i>
+                        </div>
+                    `;
+                    container.appendChild(preview);
+                });
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
+        function removeImage(index) {
+            currentTaskImages.splice(index, 1);
+            renderImagePreviews();
+        }
+
+        function showAddModal(target = 'todo') {
+            editingTaskId = null;
+            currentModalTarget = target;
+            currentTaskImages = []; // 重置图片数组
+            renderImagePreviews();
+
+            document.getElementById('addModal').style.display = 'flex';
+            
+            const confirmBtn = document.getElementById('confirmBtn');
+            confirmBtn.style.backgroundColor = target === 'do' ? 'var(--coloros-success)' : 'var(--coloros-primary)';
+            
+            const input = document.getElementById('taskInput');
+            const timeInput = document.getElementById('taskTimeInput');
+            input.value = '';
+            timeInput.value = getFormattedTime(); 
+            
+            setTimeout(() => input.focus(), 300);
+            document.getElementById('modalTitle').innerText = target === 'do' ? '记录成就' : '添加待办';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function showEditModal(id) {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+
+            editingTaskId = id;
+            currentModalTarget = task.category;
+            
+            // 兼容旧数据的单图模式
+            if (task.image && !task.images) {
+                currentTaskImages = [task.image];
+            } else {
+                currentTaskImages = task.images ? [...task.images] : [];
+            }
+
+            renderImagePreviews();
+
+            document.getElementById('addModal').style.display = 'flex';
+            
+            const confirmBtn = document.getElementById('confirmBtn');
+            confirmBtn.style.backgroundColor = task.category === 'do' ? 'var(--coloros-success)' : 'var(--coloros-primary)';
+            
+            const input = document.getElementById('taskInput');
+            const timeInput = document.getElementById('taskTimeInput');
+            input.value = task.text;
+            timeInput.value = task.time || getFormattedTime();
+            
+            setTimeout(() => {
+                input.focus();
+                // 优化：将光标移至文字末尾
+                input.setSelectionRange(input.value.length, input.value.length);
+                input.scrollTop = input.scrollHeight; // 滚动到底部
+            }, 300);
+            document.getElementById('modalTitle').innerText = '编辑事项';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function hideAddModal() {
+            document.getElementById('addModal').style.display = 'none';
+            document.body.style.overflow = '';
+            document.getElementById('taskInput').value = '';
+            editingTaskId = null;
+            currentTaskImages = [];
+        }
+
+        function addTask() {
+            const input = document.getElementById('taskInput');
+            const timeInput = document.getElementById('taskTimeInput');
+            const text = input.value.trim();
+            const customTime = timeInput.value.trim() || getFormattedTime();
+            
+            if (text) {
+                if (editingTaskId) {
+                    const task = tasks.find(t => t.id === editingTaskId);
+                    if (task) {
+                        task.text = text;
+                        task.time = customTime;
+                        task.images = [...currentTaskImages]; // 保存修改后的图片数组
+                        delete task.image; // 删除旧的单图字段
+                    }
+                } else {
+                    tasks.unshift({
+                        id: Date.now(),
+                        text: text,
+                        completed: currentModalTarget === 'do',
+                        time: customTime,
+                        category: currentModalTarget,
+                        images: [...currentTaskImages] // 保存图片数组
+                    });
+                }
+                input.value = '';
+                hideAddModal();
+                saveState();
+                renderTasks();
+            }
+        }
+
+        function toggleTask(id, isInDoView = false) {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+
+            if (isInDoView) {
+                // 在 Do 板块点击：无论之前状态，都取消对勾并移回 To Do
+                task.completed = false;
+                task.category = 'todo';
+            } else {
+                // 在 To Do 板块点击：切换完成状态
+                task.completed = !task.completed;
+                if (task.completed) {
+                    task.time = getFormattedTime();
+                }
+            }
+            saveState();
+            renderTasks();
+        }
+
+        let taskToDelete = null;
+        function deleteTask(id) {
+            taskToDelete = id;
+            const modal = document.getElementById('deleteModal');
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('active'), 10);
+            document.body.style.overflow = 'hidden';
+
+            document.getElementById('confirmDeleteBtn').onclick = () => {
+                if (taskToDelete) {
+                    tasks = tasks.filter(t => t.id !== taskToDelete);
+                    saveState();
+                    renderTasks();
+                    hideDeleteModal();
+                }
+            };
+        }
+
+        function hideDeleteModal() {
+            const modal = document.getElementById('deleteModal');
+            modal.classList.remove('active');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                taskToDelete = null;
+                document.body.style.overflow = '';
+            }, 300);
+        }
+
+        // 全屏图片查看器逻辑
+        function openImageViewer(src) {
+            const viewer = document.getElementById('imageViewer');
+            const fullImg = document.getElementById('fullImage');
+            fullImg.src = src;
+            viewer.style.display = 'flex';
+            setTimeout(() => viewer.classList.add('active'), 10);
+            document.body.style.overflow = 'hidden'; // 禁止背景滚动
+        }
+
+        function closeImageViewer() {
+            const viewer = document.getElementById('imageViewer');
+            viewer.classList.remove('active');
+            setTimeout(() => {
+                viewer.style.display = 'none';
+                document.body.style.overflow = '';
+            }, 300);
+        }
+
+        // 适配移动端软键盘弹出时的视口变化
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', () => {
+                const modal = document.getElementById('addModal');
+                if (modal.style.display === 'flex') {
+                    modal.style.height = window.visualViewport.height + 'px';
+                }
+            });
+        }
+
+        // Initialize
+        switchTab(activeTab);
+    </script>
+</body>
+</html>
