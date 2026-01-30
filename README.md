@@ -1,18 +1,18 @@
-# ToDo - 极简·丝滑·高颜值 | 12小时从零打造的 AI 编程奇迹 ✨
+# ToDo - 治愈系极致待办 | 让你的每一份努力都闪闪发光 ✨
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Design-ColorOS%20Style-25C78B?style=for-the-badge" alt="Design">
-  <img src="https://img.shields.io/badge/Powered%20by-Trae%20%26%20Gemini-blueviolet?style=for-the-badge" alt="Powered by Trae">
-  <img src="https://img.shields.io/badge/Platform-Android%20%26%20Web-0062FF?style=for-the-badge" alt="Platform">
+  <img src="https://img.shields.io/badge/Style-Minimalist%20Aesthetics-25C78B?style=for-the-badge" alt="Design">
+  <img src="https://img.shields.io/badge/Powered%20by-Trae%20AI%20Wizard-blueviolet?style=for-the-badge" alt="Powered by Trae">
+  <img src="https://img.shields.io/badge/UX-Smooth%20Gestures-0062FF?style=for-the-badge" alt="Platform">
 </p>
 
-> **“这是一个关于新手小白与 AI 共同进化的故事。”**
+> **“这不仅仅是一个工具，更是一场关于创造力的极致实验。”**
 >
-> 没有任何编程基础，在 **Trae (Gemini-3-Pro-Preview)** 的全程辅助下，历时 **12 小时**，经过 **10 余次** 灵感碰撞与迭代。从一行 HTML 到一款装进手机的丝滑 App，`ToDo` 证明了：在 AI 时代，每个人都是造物主。
+> 编程新手 + **Trae AI**，在 **12 小时** 内挑战从零构建。`ToDo` 用丝滑的交互和纯粹的视觉，重新定义了小白开发者的无限可能。
 
 ---
 
-## 📸 颜值即正义
+## 📸 极简美学，一眼心动
 
 <p align="center">
   <img src="screenshots/todo_list.png" width="280" alt="To Do 界面">
@@ -21,28 +21,38 @@
 </p>
 
 <p align="center">
-  <strong>极简、通透、秩序。</strong> <br>
-  <em>借鉴 ColorOS 灵动设计，赋予每一个任务“生命力”。</em>
+  <strong>删繁就简，秩序之美。</strong> <br>
+  <em>通透的毛玻璃质感，让你的待办列表也能成为桌面艺术品。</em>
 </p>
 
 ---
 
-## 🚀 丝滑体验，一触即达
+## 🎬 演示视频
 
-### 💎 双维度任务流
-不再只是枯燥的“打勾”。在 `To Do` 规划未来，在 `Do` 收藏成就。已完成的任务会像勋章一样变灰沉底，见证你的每一次进步。
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/76f98cd3-eec9-40f1-b60a-ba25fc33e2b1" width="300" controls title="ToDo 演示视频">
+    您的浏览器不支持视频播放。
+  </video>
+</p>
 
-### 🎨 灵动交互
-- **一键丝滑排序**：点击底部图标，任务按时间升降序瞬间排列，如流水般自然。
-- **拟物化侧滑**：从左向右轻轻一扫，优雅地告别冗余。
-- **自由拖拽**：长按、拖拽、放下，优先级尽在掌握。
+---
 
-### 📝 深度时间管理
-- **智能日期识别**：输入日期，自动为你计算星期几，甚至能感知“设为当前”的迫切。
-- **多维记忆**：支持多图上传，让每一个待办都图文并茂。
+## 🌟 核心功能：为什么选择 ToDo？
 
-### 🛡️ 隐私与极致性能
-- **100% 离线，100% 安全**：数据不上传云端，仅存储于手机本地，零延迟响应，隐私只属于你。
+### 💎 勋章系统：让任务变身成就
+拒绝枯燥的列表。在 `To Do` 规划未来，在 `Do` 收藏勋章。任务完成后会自动变灰、沉底并同步，这种“打怪升级”般的正向反馈让你彻底告别拖延症。
+
+### 🎨 指尖魔法：极致丝滑的交互
+- **感官排序**：点击图标，列表如流水般按时间自动升降序。
+- **拟物化侧滑**：像拂去灰尘一样，从左向右轻轻一扫，优雅地删除任务。
+- **随心拖拽**：长按即开启 "重力感应"，自由调整优先级。
+
+### � 智联时间：它懂你的每一刻
+- **智能日期识别**：输入日期自动匹配星期，支持 "设为当前" 一键锁定当下。
+- **多维记忆存档**：每一个事项都支持多图上传，让待办变成图文并茂的日记。
+
+### � 隐私之盾：纯粹的本地力量
+- **100% 离线运行**：无需联网，无需账号。数据只存在于你的手机里，极速响应，隐私无忧。
 
 ---
 
